@@ -86,7 +86,6 @@ class RegisterView(View):
         # 通知celery执行此任务，并传递参数user
         send_user_active.delay(user.id,email)
 
-
         # 提示
         return HttpResponse('历经千辛万苦，终获真经！看看邮箱我给你的宝贝～')
 
@@ -122,7 +121,7 @@ def exists(request):
     return JsonResponse({'result': result})
 
 
-# 登录
+
 class LoginView(View):
     def get(self,request):
         uname=request.COOKIES.get('uname','')
@@ -167,29 +166,3 @@ class LoginView(View):
         # 状态保持
         login(request,user)
 
-        response=redirect('/user/info')
-
-        #记住用户名
-        if remember is None:
-            response.delete_cookie('uname')
-        else:
-            response.set_cookie('uname',uname,expires=60*60*24*7)
-
-        # 如果登录成功则转到用户中心页面
-        return response
-
-
-#
-def info(request):
-
-    return render(request,'user_center_info.html')
-
-def order(request):
-
-    return render(request,'user_center_order.html')
-
-class SiteView(View):
-    def get(self,request):
-        return render(request,'user_center_site.html')
-    def post(self,request):
-        pass
