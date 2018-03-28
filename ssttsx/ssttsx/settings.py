@@ -129,3 +129,24 @@ EMAIL_HOST_USER = 'suns6868@163.com'
 EMAIL_HOST_PASSWORD = 's549784289'
 #收件人看到的发件人
 EMAIL_FROM = '天天生鲜<suns6868@163.com>'
+
+
+#缓存设置，使用redis保存缓存的内容
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/6",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+# Session
+# http://django-redis-chs.readthedocs.io/zh_CN/latest/#session-backend
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+
+LOGIN_URL = '/user/login'

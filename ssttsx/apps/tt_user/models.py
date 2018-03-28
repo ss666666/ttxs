@@ -35,5 +35,8 @@ class Address(BaseModel):
     # 是否为默认地址
     isDefault = models.BooleanField(default=False)
 
+    user=models.ForeignKey(User,null=True)
+
+
     class Meta:
         db_table = 'df_address'
