@@ -9,6 +9,7 @@ from django_redis import get_redis_connection
 from django.core.paginator import Paginator,Page
 from utils.page_list import get_page_list
 from haystack.generic_views import SearchView
+import json
 
 
 def fdfs_test(request):
@@ -50,6 +51,10 @@ def index(request):
 
         cache.set('index2',context, 600)
         #
+
+    # 设置购物车数量
+    context['total_count'] = get_cart_total(request)
+
     response = render(request,'index.html',context)
 
 
@@ -103,6 +108,8 @@ def detail(request, sku_id):
 
     }
 
+    # 设置购物车数量
+    context['total_count'] = get_cart_total(request)
 
 
     return render(request, 'detail.html', context)
@@ -167,10 +174,20 @@ def list_sku(request, category_id):
 
     }
 
+    # 设置购物车数量
+    context['total_count'] = get_cart_total(request)
+
+
     return render(request,'list.html',context)
 
 
 class MySearchView(SearchView):
+
+    def get(self, request, *args, **kwargs):
+        self.curr_request = request
+        return super().get(request, *args, **kwargs)
+
+
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context['title']='搜索结果'
@@ -181,4 +198,29 @@ class MySearchView(SearchView):
         pindex=context['page_obj'].number
         context['page_list']=get_page_list(total_page,pindex)
 
+        # 设置购物车数量
+        context['total_count'] = get_cart_total(self.curr_request)
+
         return context
+
+
+def get_cart_total(request):
+    """获取购物车中商品的数量"""
+    total_count = 0
+    # 判断用户是否登录
+    if request.user.is_authenticated():
+        # 登录则从redis中读取数据
+        redis_client = get_redis_connection()
+        for v in redis_client.hvals('cart%d' % request.user.id):
+            total_count += int(v)
+
+    else:
+        # 没有登录就从cookie中读取数据
+        cart_str = request.COOKIES.get('cart')
+        if cart_str:
+            cart_dict = json.loads(cart_str)
+            for k, v in cart_dict.items():
+                total_count += v
+
+    return total_count
+

@@ -1,17 +1,22 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render, redirect
 from django.views.generic import View
-from .models import User,Address,AreaInfo
-from django.http import HttpResponse,JsonResponse
+from .models import User, Address, AreaInfo
 import re
+from django.http import HttpResponse, JsonResponse
 from django.core.mail import send_mail
 from django.conf import settings
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer,SignatureExpired
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, SignatureExpired
 from celery_tasks.tasks import send_user_active
-from django.contrib.auth import authenticate,login,logout
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from utils.views import LoginRequiredView, LoginRequiredViewMixin
 from django_redis import get_redis_connection
 from tt_goods.models import GoodsSKU
+import json
+from tt_order.models import OrderInfo
+from django.core.paginator import Paginator,Page
+from utils.page_list import get_page_list
+
 
 
 
@@ -183,6 +188,32 @@ class LoginView(View):
         else:
             response.set_cookie('uname',uname,expires=60*60*24*7)
 
+
+        # 将cookies中的信息加入到redis中
+        # 读取cookies中的信息，然后转成字典
+        cart_str = request.COOKIES.get('cart')
+        if cart_str:
+            key = 'cart%d' % request.user.id
+            redis_client = get_redis_connection()
+            cart_dict = json.loads(cart_str)
+            # 遍历
+            for k, v in cart_dict.items():
+                # 判断redis中是否存在这个商品
+                if redis_client.hexists(key, k):
+                    # 有则相加
+                    count1 = int(redis_client.hget(key,k))
+                    count2 = v
+                    count0 = count1 + count2
+                    if count0 > 5:
+                        count0 = 5
+                    redis_client.hset(key,k,count0)
+                else:
+                    # 没有就直接添加
+                    redis_client.hset(key,k,v)
+
+            # 已存到redis中，删除cookie中的信息
+            response.delete_cookie('cart')
+
         # 如果登录成功则转到用户中心页面
         return response
 
@@ -226,8 +257,28 @@ def info(request):
 
 @login_required
 def order(request):
-    context = {}
-    return render(request,'user_center_order.html',context)
+    #查询当前用户的所有订单数据
+    order_list=OrderInfo.objects.filter(user=request.user)
+    #分页
+    paginator=Paginator(order_list,2)
+    total_page=paginator.num_pages
+
+    pindex=int(request.GET.get('pindex',1))
+    if pindex<=1:
+        pindex=1
+    if pindex>=total_page:
+        pindex=total_page
+
+    page=paginator.page(pindex)
+
+    page_list=get_page_list(total_page,pindex)
+
+    context = {
+        'title':'我的订单',
+        'page':page,
+        'page_list':page_list
+    }
+    return render(request, 'user_center_order.html', context)
 
 class SiteView(LoginRequiredViewMixin,View):
     def get(self,request):

@@ -7,7 +7,7 @@ urlpatterns = [
     url('^active/(.+)$',views.active),
     url('^exists$',views.exists),
     url('^login$',views.LoginView.as_view()),
-    url('^logout_user$',views.logout),
+    url('^logout$',views.logout_user),
     url('^info$',views.info),
     url('^order$',views.order),
     url('^site$',views.SiteView.as_view()),
